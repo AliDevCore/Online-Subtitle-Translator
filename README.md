@@ -51,16 +51,15 @@ Powered by modern cloud AI models (**Google Gemini** and **Cloudflare Workers AI
 ## 🚀 Installation & Quick Start
 
 ### Option 1: Portable Standalone Executable (Recommended)
-Run the executable directly from your utility installation folder:
-```
-C:\Ali\Utility\Online Subtitle Translator\Online Subtitle Translator.exe
-```
+1. Download the latest portable release archive (Online-Subtitle-Translator-v*.zip) from the [Releases](https://github.com/your-username/Online-Subtitle-Translator/releases) page.
+2. Extract the .zip archive to any directory of your choice.
+3. Run Online Subtitle Translator.exe.
 
 ### Option 2: Run from Source
 
 ```bash
 # Clone the repository
-git clone https://github.com/Ali/Online-Subtitle-Translator.git
+git clone https://github.com/your-username/Online-Subtitle-Translator.git
 cd "Online Subtitle Translator"
 
 # Install dependencies
