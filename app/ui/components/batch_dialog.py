@@ -297,15 +297,21 @@ class BatchDialog(QDialog):
     def _on_rate_limit_cleared(self, provider: str):
         self.rate_limit_frame.hide()
 
-    def _on_batch_finished(self, success_count: int, failed_count: int):
+    def _on_batch_finished(self, success_count: int, failed_count: int, cancelled_count: int = 0):
         self.progress_bar.setValue(100)
         self._reset_ui_state()
         self._refresh_table()
-        QMessageBox.information(
-            self,
-            "Batch Complete",
-            f"Batch Translation Finished!\n\nSuccessfully Translated: {success_count}\nFailed: {failed_count}"
-        )
+        msg = f"Batch Translation Finished!\n\nSuccessfully Translated: {success_count}\nFailed: {failed_count}"
+        if cancelled_count > 0:
+            msg += f"\nCancelled / Unprocessed: {cancelled_count}"
+        QMessageBox.information(self, "Batch Complete", msg)
+
+    def closeEvent(self, event):
+        """Ensure batch worker is cleanly cancelled and waited on before exit."""
+        if self.worker and self.worker.isRunning():
+            self.worker.cancel()
+            self.worker.wait(2000)
+        event.accept()
 
     def _on_batch_error(self, error: str):
         self._reset_ui_state()

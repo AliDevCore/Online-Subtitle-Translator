@@ -1,53 +1,61 @@
 """
-Tests for SQLite job tracking and chunk resumability.
+Tests for SQLite translation job tracking and status persistence.
 """
 
 from app.core.database import Database
-from app.core.types import AudioChunk, SubtitleCue, JobStatus
+from app.core.types import JobStatus
 
 
-def test_job_lifecycle(temp_database):
+def test_translation_job_lifecycle(temp_database):
     db = temp_database
-    job_id = "test_job_123"
+    job_id = "trans_job_123"
 
     db.create_job(
         job_id=job_id,
-        video_path="C:/videos/sample.mp4",
-        pipeline="ASR",
-        start_seconds=0.0,
+        video_path="C:/videos/sample.en.srt",
+        pipeline="TRANSLATION",
+        start_seconds=1.0,
         end_seconds=120.0,
-        asr_provider="gemini",
-        asr_model="gemini-2.5-flash",
-        output_srt_path="C:/videos/sample.en.srt"
+        translation_provider="cloudflare",
+        translation_model="@cf/meta/llama-3.1-8b-instruct",
+        output_srt_path="C:/videos/sample.fa.srt"
     )
 
     job = db.get_job(job_id)
     assert job is not None
     assert job["id"] == job_id
     assert job["status"] == JobStatus.PENDING.value
+    assert job["translation_provider"] == "cloudflare"
 
-    # Update to extracting
-    db.update_job_status(job_id, JobStatus.EXTRACTING)
-    assert db.get_job(job_id)["status"] == JobStatus.EXTRACTING.value
+    # Update to TRANSLATING
+    db.update_job_status(job_id, JobStatus.TRANSLATING)
+    assert db.get_job(job_id)["status"] == JobStatus.TRANSLATING.value
 
-    # Save chunk
-    chunk = AudioChunk(
-        index=1,
-        file_path="C:/temp/chunk_1.wav",
-        start_seconds=0.0,
-        end_seconds=60.0,
-        duration_seconds=60.0,
-        status="COMPLETED",
-        cues=[SubtitleCue(1, 1000, 4000, "Hello chunk 1")]
-    )
-    db.save_chunk(job_id, chunk)
+    # Update to COMPLETED
+    db.update_job_status(job_id, JobStatus.COMPLETED, translated_srt_path="C:/videos/sample.fa.srt")
+    completed_job = db.get_job(job_id)
+    assert completed_job["status"] == JobStatus.COMPLETED.value
+    assert completed_job["translated_srt_path"] == "C:/videos/sample.fa.srt"
 
-    chunks = db.get_chunks(job_id)
-    assert len(chunks) == 1
-    assert chunks[0].index == 1
-    assert len(chunks[0].cues) == 1
-    assert chunks[0].cues[0].text == "Hello chunk 1"
 
-    # Mark completed
-    db.update_job_status(job_id, JobStatus.COMPLETED)
-    assert db.get_job(job_id)["status"] == JobStatus.COMPLETED.value
+def test_job_failure_and_cancellation(temp_database):
+    db = temp_database
+
+    # Failure tracking
+    fail_id = "fail_job_456"
+    db.create_job(fail_id, "test.srt", "TRANSLATION")
+    db.update_job_status(fail_id, JobStatus.FAILED, error_message="Rate limit quota exceeded")
+    failed_job = db.get_job(fail_id)
+    assert failed_job["status"] == JobStatus.FAILED.value
+    assert "quota exceeded" in failed_job["error_message"]
+
+    # Cancelled tracking
+    cancel_id = "cancel_job_789"
+    db.create_job(cancel_id, "test.srt", "TRANSLATION")
+    db.update_job_status(cancel_id, JobStatus.CANCELLED, error_message="Cancelled by user.")
+    cancelled_job = db.get_job(cancel_id)
+    assert cancelled_job["status"] == JobStatus.CANCELLED.value
+
+    # Deletion
+    db.delete_job(fail_id)
+    assert db.get_job(fail_id) is None

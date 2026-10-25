@@ -30,6 +30,8 @@ jobs:
           pip install -r requirements-dev.txt
 
       - name: Run automated tests
+        env:
+          QT_QPA_PLATFORM: offscreen
         run: |
           python -m pytest tests -v
 
@@ -37,16 +39,20 @@ jobs:
         run: |
           python packaging/build_windows.py
 
-      - name: Create Portable Zip Package
+      - name: Create Portable Zip Package & Checksums
         shell: pwsh
         run: |
           Compress-Archive -Path "dist/Online Subtitle Translator/*" -DestinationPath "Online-Subtitle-Translator-Portable.zip" -Force
+          $hash = (Get-FileHash -Algorithm SHA256 Online-Subtitle-Translator-Portable.zip).Hash
+          "$hash  Online-Subtitle-Translator-Portable.zip" | Out-File -Encoding utf8 SHA256SUMS.txt
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
           name: Online-Subtitle-Translator-Windows-Portable
-          path: Online-Subtitle-Translator-Portable.zip
+          path: |
+            Online-Subtitle-Translator-Portable.zip
+            SHA256SUMS.txt
 
       - name: Generate Release Version & Tag
         id: versioning
@@ -69,7 +75,9 @@ jobs:
         with:
           tag_name: ${{ steps.versioning.outputs.tag }}
           name: ${{ steps.versioning.outputs.title }}
-          files: Online-Subtitle-Translator-Portable.zip
+          files: |
+            Online-Subtitle-Translator-Portable.zip
+            SHA256SUMS.txt
           generate_release_notes: true
           draft: false
           prerelease: false

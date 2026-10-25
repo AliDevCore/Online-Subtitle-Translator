@@ -3,10 +3,10 @@ requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "onlinesub"
+name = "online-subtitle-translator"
 version = "1.0.0"
-authors = [{ name = "OnlineSub" }]
-description = "AI Subtitle Generator & Persian Translator Windows Desktop Application"
+authors = [{ name = "Online Subtitle Project" }]
+description = "AI Subtitle Translator Windows Desktop Application"
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }
@@ -18,15 +18,18 @@ classifiers = [
 ]
 dependencies = [
     "PySide6>=6.8.0",
-    "psutil>=6.0.0",
     "keyring>=24.0.0",
     "requests>=2.31.0",
-    "faster-whisper>=1.0.0",
     "Pillow>=10.0.0",
+    "charset-normalizer>=3.0.0",
 ]
 
 [project.scripts]
-onlinesub = "app.main:main"
+online-subtitle-translator = "app.main:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["app*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

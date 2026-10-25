@@ -1,71 +1,44 @@
-# OnlineSub Architecture
+# Architecture & Technical Design
+
+Online Subtitle Translator is structured as a decoupled, multi-tier desktop application built on Python 3 and PySide6 (Qt6).
 
 ```mermaid
-flowchart TD
-    subgraph UI ["PySide6 Graphical Interface"]
-        MainWindow["MainWindow (English UI)"]
-        PerfDialog["PerformanceDialog"]
-        CredDialog["CredentialsDialog"]
-        BatchDialog["BatchDialog"]
-        LogViewer["LogViewerDialog"]
-    end
+graph TD
+    UI[PySide6 UI Layer<br/>MainWindow / BatchDialog / CredentialsDialog]
+    Worker[QThread Workers<br/>TranslationWorker / TranslationBatchWorker]
+    Service[Service Layer<br/>TranslationService / BatchService]
+    Core[Core Engine<br/>SRTParser / CredentialManager / Database]
+    Providers[Provider Adapters<br/>GeminiProvider / CloudflareProvider]
 
-    subgraph Workers ["Asynchronous Workers (QThread)"]
-        ASRWorker["ASRWorker (Pipeline A)"]
-        TransWorker["TranslationWorker (Pipeline B)"]
-        BatchWorker["BatchWorker (Queue)"]
-    end
-
-    subgraph CoreServices ["Core Services"]
-        FFmpegSvc["FFmpegService (Probe & Audio Slice)"]
-        ASRSvc["ASRService (Pipeline A)"]
-        TransSvc["TranslationService (Pipeline B)"]
-        Chunker["AudioChunker (Overlap & Reconcile)"]
-        SRTParser["SRTParser (Validate & Serialize)"]
-        ResCtrl["ResourceController (CPU & Priority)"]
-        CredMgr["CredentialManager (Windows Credential Manager)"]
-        DB["Database (SQLite Resumability)"]
-    end
-
-    subgraph Providers ["AI Providers & Adapters"]
-        GeminiASR["GeminiASRProvider"]
-        GeminiTrans["GeminiTranslationProvider"]
-        CF_ASR["CloudflareASRProvider"]
-        CF_Trans["CloudflareTranslationProvider"]
-        HF_ASR["HuggingFaceASRProvider"]
-        HF_Trans["HuggingFaceTranslationProvider"]
-        LocalWhisper["LocalWhisperASRProvider"]
-    end
-
-    MainWindow --> ASRWorker
-    MainWindow --> TransWorker
-    MainWindow --> BatchWorker
-    MainWindow --> PerfDialog
-    MainWindow --> CredDialog
-    MainWindow --> LogViewer
-
-    ASRWorker --> ASRSvc
-    TransWorker --> TransSvc
-    BatchWorker --> ASRSvc
-    BatchWorker --> TransSvc
-
-    ASRSvc --> FFmpegSvc
-    ASRSvc --> Chunker
-    ASRSvc --> SRTParser
-    ASRSvc --> ResCtrl
-    ASRSvc --> DB
-    ASRSvc --> Providers
-
-    TransSvc --> SRTParser
-    TransSvc --> DB
-    TransSvc --> Providers
-
-    Providers --> CredMgr
+    UI --> Worker
+    Worker --> Service
+    Service --> Core
+    Service --> Providers
+    Providers --> Core
 ```
 
-## Architectural Design Principles
+---
 
-1. **Independent Pipelines**: ASR and Translation are completely decoupled. Translation operates directly on `.srt` files and never requires media files or rerunning speech recognition.
-2. **Local vs Cloud Resource Separation**: CPU Usage Target and Process Priority are applied strictly to local FFmpeg extraction and local Faster-Whisper inference. Cloud API network requests are never throttled.
-3. **Zero Plaintext Credentials**: API keys are routed through Windows Credential Manager and redacted from all logs and diagnostics.
-4. **Resumability**: Multi-chunk operations and batch queues persist their state in SQLite (`onlinesub.db`).
+## Component Roles
+
+1. **`app.ui`**:
+   - `MainWindow`: Primary interface for single file translation, real-time stage progress, and output access.
+   - `BatchDialog`: Multi-subtitle queue management and folder scanning.
+   - `CredentialsDialog`: Tabbed credential management for up to 10 Gemini and 10 Cloudflare accounts.
+
+2. **`app.workers`**:
+   - `TranslationWorker`: Background `QThread` ensuring smooth, non-blocking UI during network operations.
+   - `TranslationBatchWorker`: Sequential batch processing worker with rate-limit signal broadcasting.
+
+3. **`app.services`**:
+   - `TranslationService`: Coordinates file validation, cue chunking, database status tracking, and atomic file saving.
+   - `BatchService`: Manages queue execution, failure isolation, and directory scanning with output exclusion.
+
+4. **`app.providers`**:
+   - `GeminiTranslationProvider`: 2-layer model and account rotation adapter with `x-goog-api-key` header authentication.
+   - `CloudflareTranslationProvider`: Multi-account pool adapter for Llama 3.1 8B with active account memory.
+
+5. **`app.core`**:
+   - `SRTParser`: High-tolerance SRT parsing, blank-line resilience inside dialogue, multi-encoding detection (UTF-8, cp1256, UTF-16), and atomic file writing with UTF-8 BOM.
+   - `CredentialManager`: In-memory cached interface to Windows Credential Manager (DPAPI) and log redactor.
+   - `Database`: SQLite storage for translation job history.

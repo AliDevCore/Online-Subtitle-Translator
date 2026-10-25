@@ -15,11 +15,11 @@ hiddenimports = [
     'PySide6.QtCore',
     'PySide6.QtGui',
     'PySide6.QtWidgets',
-    'psutil',
     'keyring',
     'keyring.backends',
     'keyring.backends.Windows',
     'requests',
+    'charset_normalizer',
     'sqlite3',
 ]
 
@@ -32,7 +32,7 @@ a = Analysis(
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
-    excludes=['tkinter', 'matplotlib', 'scipy', 'faster_whisper', 'ctranslate2', 'torch'],
+    excludes=['tkinter', 'matplotlib', 'scipy', 'faster_whisper', 'ctranslate2', 'torch', 'psutil'],
     win_no_prefer_redirects=False,
     win_private_assemblies=False,
     cipher=block_cipher,

@@ -1,5 +1,5 @@
 """
-Core data types and structures for OnlineSub.
+Core data types and structures for Online Subtitle Translator.
 """
 
 from __future__ import annotations
@@ -10,8 +10,6 @@ from typing import List, Optional, Dict, Any
 
 class JobStatus(str, Enum):
     PENDING = "PENDING"
-    EXTRACTING = "EXTRACTING"
-    TRANSCRIBING = "TRANSCRIBING"
     TRANSLATING = "TRANSLATING"
     COMPLETED = "COMPLETED"
     FAILED = "FAILED"
@@ -19,47 +17,13 @@ class JobStatus(str, Enum):
 
 
 class PipelineType(str, Enum):
-    ASR = "ASR"
     TRANSLATION = "TRANSLATION"
     BATCH = "BATCH"
 
 
 @dataclass
-class TimeRange:
-    start_seconds: float
-    end_seconds: float
-
-    @classmethod
-    def from_minutes(cls, start_min: float, end_min: float) -> TimeRange:
-        return cls(start_seconds=float(start_min) * 60.0, end_seconds=float(end_min) * 60.0)
-
-    @property
-    def start_minutes(self) -> float:
-        return self.start_seconds / 60.0
-
-    @property
-    def end_minutes(self) -> float:
-        return self.end_seconds / 60.0
-
-    @property
-    def duration_seconds(self) -> float:
-        return max(0.0, self.end_seconds - self.start_seconds)
-
-    def validate(self, video_duration_seconds: Optional[float] = None) -> tuple[bool, str]:
-        if self.start_seconds < 0:
-            return False, "Start time cannot be negative."
-        if self.end_seconds <= self.start_seconds:
-            return False, f"End time ({self.end_seconds / 60.0:.2f}m) must be greater than start time ({self.start_seconds / 60.0:.2f}m)."
-        if video_duration_seconds is not None and video_duration_seconds > 0:
-            if self.start_seconds >= video_duration_seconds:
-                return False, f"Start time ({self.start_seconds / 60.0:.2f}m) exceeds video duration ({video_duration_seconds / 60.0:.2f}m)."
-            if self.end_seconds > video_duration_seconds + 0.05:  # small tolerance
-                return False, f"End time ({self.end_seconds / 60.0:.2f}m) exceeds video duration ({video_duration_seconds / 60.0:.2f}m)."
-        return True, ""
-
-
-@dataclass
 class SubtitleCue:
+    """Individual subtitle entry with millisecond timestamps and text."""
     index: int
     start_ms: int
     end_ms: int
@@ -121,6 +85,7 @@ class SubtitleCue:
 
 @dataclass
 class SubtitleFile:
+    """Collection of ordered subtitle cues representing an SRT file."""
     cues: List[SubtitleCue] = field(default_factory=list)
     language: str = "en"
 
@@ -147,23 +112,8 @@ class SubtitleFile:
                 errors.append(f"Cue #{i}: end time ({cue.end_str}) is not after start time ({cue.start_str}).")
             if not cue.text.strip():
                 errors.append(f"Cue #{i} contains empty text.")
-            if cue.start_ms < prev_end:
-                # Overlap warning / issue
-                pass
             prev_end = cue.end_ms
         return len(errors) == 0, errors
-
-
-@dataclass
-class AudioChunk:
-    index: int
-    file_path: str
-    start_seconds: float
-    end_seconds: float
-    duration_seconds: float
-    status: str = "PENDING"
-    raw_response: str = ""
-    cues: List[SubtitleCue] = field(default_factory=list)
 
 
 @dataclass
@@ -172,7 +122,7 @@ class ProviderInfo:
     display_name: str
     model_id: str
     model_display_name: str
-    pipeline: str  # "ASR" or "TRANSLATION"
+    pipeline: str  # "TRANSLATION"
     is_free: bool
     pricing_desc: str
     free_tier_desc: str
@@ -181,72 +131,3 @@ class ProviderInfo:
     requires_key: bool
     doc_url: str
     verification_date: str = "2026-10"
-
-
-@dataclass
-class PerformanceSettings:
-    cpu_usage_target: int = 100       # 25, 50, 75, 100 (%)
-    process_priority: str = "Normal"  # "Below Normal", "Normal", "Above Normal"
-    cpu_threads: str = "Automatic"    # "Automatic" or string integer
-    ram_limit: str = "Automatic"      # "Automatic" or string integer in MB
-    affinity_cpus: Optional[List[int]] = None  # None = all CPUs
-
-    def to_dict(self) -> Dict[str, Any]:
-        return {
-            "cpu_usage_target": self.cpu_usage_target,
-            "process_priority": self.process_priority,
-            "cpu_threads": self.cpu_threads,
-            "ram_limit": self.ram_limit,
-            "affinity_cpus": self.affinity_cpus,
-        }
-
-    @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> PerformanceSettings:
-        return cls(
-            cpu_usage_target=data.get("cpu_usage_target", 100),
-            process_priority=data.get("process_priority", "Normal"),
-            cpu_threads=data.get("cpu_threads", "Automatic"),
-            ram_limit=data.get("ram_limit", "Automatic"),
-            affinity_cpus=data.get("affinity_cpus", None),
-        )
-
-
-@dataclass
-class SystemInfo:
-    cpu_name: str
-    physical_cores: int
-    logical_cores: int
-    total_ram_gb: float
-    available_ram_gb: float
-    has_gpu: bool = False
-    gpu_name: str = "None"
-
-
-@dataclass
-class ChunkingSettings:
-    """Configurable audio chunking settings for Cloudflare Workers AI ASR."""
-    enabled: bool = True
-    cloudflare_minutes: float = 5.0
-
-    def to_dict(self) -> Dict[str, Any]:
-        return {
-            "enabled": self.enabled,
-            "cloudflare_minutes": self.cloudflare_minutes,
-        }
-
-    @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> ChunkingSettings:
-        return cls(
-            enabled=data.get("enabled", True),
-            cloudflare_minutes=float(data.get("cloudflare_minutes", 5.0)),
-        )
-
-    def get_chunk_duration_seconds(self, provider_id: str = "cloudflare") -> Optional[float]:
-        """
-        Return chunk duration in seconds for Cloudflare.
-        If chunking is disabled, returns None (single-request mode).
-        """
-        if not self.enabled:
-            return None
-        return max(0.5, float(self.cloudflare_minutes)) * 60.0
-

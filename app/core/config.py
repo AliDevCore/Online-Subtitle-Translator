@@ -8,11 +8,11 @@ import os
 import sys
 from pathlib import Path
 from typing import Dict, List, Optional
-from app.core.types import ProviderInfo, PerformanceSettings
+from app.core.types import ProviderInfo
 
 APP_NAME = "Online Subtitle Translator"
 APP_VERSION = "1.0.0"
-APP_AUTHOR = "OnlineSub"
+APP_AUTHOR = "Online Subtitle Project"
 
 # Determine base paths and portable mode
 IS_FROZEN = getattr(sys, "frozen", False)
@@ -36,23 +36,39 @@ else:
     else:
         USER_DATA_DIR = Path.home() / ".onlinesubtitletranslator"
 
-USER_DATA_DIR.mkdir(parents=True, exist_ok=True)
+
+def ensure_data_dirs() -> None:
+    """Safely create application data directories with fallback if portable dir is read-only."""
+    global USER_DATA_DIR, SETTINGS_FILE, DATABASE_FILE, LOGS_DIR, CACHE_DIR
+    try:
+        USER_DATA_DIR.mkdir(parents=True, exist_ok=True)
+        LOGS_DIR.mkdir(parents=True, exist_ok=True)
+        CACHE_DIR.mkdir(parents=True, exist_ok=True)
+    except (PermissionError, OSError):
+        # Fallback to APPDATA or user temp directory if directory is read-only
+        appdata = os.environ.get("APPDATA") or os.environ.get("TEMP")
+        if appdata:
+            USER_DATA_DIR = Path(appdata) / "OnlineSubtitleTranslator"
+        else:
+            USER_DATA_DIR = Path.home() / ".onlinesubtitletranslator"
+        SETTINGS_FILE = USER_DATA_DIR / "settings.json"
+        DATABASE_FILE = USER_DATA_DIR / "onlinesubtitletranslator.db"
+        LOGS_DIR = USER_DATA_DIR / "logs"
+        CACHE_DIR = USER_DATA_DIR / "temp"
+        USER_DATA_DIR.mkdir(parents=True, exist_ok=True)
+        LOGS_DIR.mkdir(parents=True, exist_ok=True)
+        CACHE_DIR.mkdir(parents=True, exist_ok=True)
+
 
 SETTINGS_FILE = USER_DATA_DIR / "settings.json"
 DATABASE_FILE = USER_DATA_DIR / "onlinesubtitletranslator.db"
 LOGS_DIR = USER_DATA_DIR / "logs"
 CACHE_DIR = USER_DATA_DIR / "temp"
-LOGS_DIR.mkdir(parents=True, exist_ok=True)
-CACHE_DIR.mkdir(parents=True, exist_ok=True)
 
-DEFAULT_PERFORMANCE_SETTINGS = PerformanceSettings(
-    cpu_usage_target=100,
-    process_priority="Normal",
-    cpu_threads="Automatic",
-    ram_limit="Automatic",
-    affinity_cpus=None
-)
+# Initialize directories lazily
+ensure_data_dirs()
 
+# Centralized Language definitions
 SUPPORTED_TARGET_LANGUAGES: List[Dict[str, str]] = [
     {"code": "fa", "name": "Persian (فارسی)", "native": "فارسی"},
     {"code": "ar", "name": "Arabic (العربية)", "native": "العربية"},
@@ -74,6 +90,28 @@ SUPPORTED_TARGET_LANGUAGES: List[Dict[str, str]] = [
     {"code": "sv", "name": "Swedish (Svenska)", "native": "Svenska"},
     {"code": "pl", "name": "Polish (Polski)", "native": "Polski"},
 ]
+
+LANG_NAME_MAP: Dict[str, str] = {
+    "fa": "natural Persian (فارسی)",
+    "ar": "fluent Arabic (العربية)",
+    "es": "fluent Spanish (Español)",
+    "fr": "fluent French (Français)",
+    "de": "fluent German (Deutsch)",
+    "it": "fluent Italian (Italiano)",
+    "tr": "fluent Turkish (Türkçe)",
+    "ru": "fluent Russian (Русский)",
+    "zh": "fluent Chinese (中文)",
+    "ja": "fluent Japanese (日本語)",
+    "ko": "fluent Korean (한국어)",
+    "ku": "fluent Kurdish (کوردی)",
+    "hi": "fluent Hindi (हिन्दी)",
+    "ur": "fluent Urdu (اردو)",
+    "pt": "fluent Portuguese (Português)",
+    "nl": "fluent Dutch (Nederlands)",
+    "el": "fluent Greek (Ελληνικά)",
+    "sv": "fluent Swedish (Svenska)",
+    "pl": "fluent Polish (Polski)",
+}
 
 
 def get_app_icon():
@@ -99,9 +137,7 @@ def get_app_icon():
     return QIcon()
 
 
-# Online Subtitle Translator is dedicated exclusively to Subtitle Translation
-VERIFIED_ASR_PROVIDERS: List[ProviderInfo] = []
-
+# Verified Translation Models
 VERIFIED_TRANSLATION_PROVIDERS: List[ProviderInfo] = [
     ProviderInfo(
         provider_id="gemini",

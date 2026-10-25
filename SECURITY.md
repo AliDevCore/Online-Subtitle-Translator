@@ -2,12 +2,13 @@
 
 ## Credential Storage
 
-OnlineSub treats user API keys and authentication tokens with paramount security:
-- **Windows Credential Manager**: All credentials (Google Gemini, Cloudflare, Hugging Face) are stored in the OS-managed secure credential store via the Windows DPAPI/Credential API.
-- **Zero Plaintext Persistence**: API keys are NEVER written to non-sensitive configuration files (`settings.json`), SQLite databases (`onlinesub.db`), crash dumps, or log files.
-- **Redaction**: All exceptions, error messages, and network URLs are automatically sanitized through `CredentialManager.sanitize_text` to prevent accidental credential leakage in application logs.
-- **HTTPS Enforcement**: All remote API communications are strictly encrypted using HTTPS.
+Online Subtitle Translator treats user API keys and authentication tokens with care:
+- **Windows Credential Manager**: Credentials (Google Gemini and Cloudflare API keys) are stored securely in the OS credential store via Windows DPAPI.
+- **Memory Caching**: Sensitive keys are cached in memory during active sessions to eliminate DPAPI latency and avoid frequent disk and OS API lookups.
+- **Header-Based Authentication**: Google Gemini requests transmit the API key via the `x-goog-api-key` HTTP header rather than exposed in URL query parameters.
+- **Redaction**: Key material is automatically redacted from application logs and diagnostic viewer outputs.
+- **HTTPS Enforcement**: All remote API communications are encrypted via HTTPS.
 
 ## Reporting a Vulnerability
 
-If you discover a security flaw or secret leakage issue, please contact the repository owner directly.
+If you discover a security vulnerability or credential handling issue, please report it via [GitHub Private Vulnerability Reporting](https://github.com/) on the repository.

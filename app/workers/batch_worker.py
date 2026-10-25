@@ -15,7 +15,7 @@ class TranslationBatchWorker(QThread):
     item_updated = Signal(str, int, int, str, int)   # (item_name, index, total, status, overall_pct)
     rate_limit_wait = Signal(str, int, int, str)     # (provider, remaining_sec, attempt, reason)
     rate_limit_cleared = Signal(str)                 # (provider)
-    batch_finished = Signal(int, int)                # (successful_count, failed_count)
+    batch_finished = Signal(int, int, int)           # (successful_count, failed_count, cancelled_count)
     failed = Signal(str)
 
     def __init__(
@@ -56,7 +56,8 @@ class TranslationBatchWorker(QThread):
             )
 
             success = sum(1 for it in items if it.status.value == "COMPLETED")
-            failed = len(items) - success
-            self.batch_finished.emit(success, failed)
+            failed = sum(1 for it in items if it.status.value == "FAILED")
+            cancelled = sum(1 for it in items if it.status.value in ("CANCELLED", "PENDING"))
+            self.batch_finished.emit(success, failed, cancelled)
         except Exception as e:
             self.failed.emit(str(e))

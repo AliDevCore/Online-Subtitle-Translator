@@ -14,11 +14,11 @@ from app.services.translation_service import TranslationService
 class TranslationWorker(QThread):
     """Worker thread executing subtitle translation into a target language."""
 
-    progress = Signal(str, int)       # (stage_description, percentage)
+    progress = Signal(str, int)                      # (stage_description, percentage)
     rate_limit_wait = Signal(str, int, int, str)     # (provider, remaining_sec, attempt, reason)
     rate_limit_cleared = Signal(str)                 # (provider)
-    finished = Signal(str)            # (translated_srt_path)
-    failed = Signal(str)              # (error_message)
+    completed = Signal(str)                          # (translated_srt_path) - Renamed from finished to prevent Qt signal shadowing
+    failed = Signal(str)                             # (error_message)
 
     def __init__(
         self,
@@ -62,6 +62,6 @@ class TranslationWorker(QThread):
             if self.is_cancelled:
                 self.failed.emit("Operation cancelled by user.")
             else:
-                self.finished.emit(str(out_file))
+                self.completed.emit(str(out_file))
         except Exception as e:
             self.failed.emit(str(e))

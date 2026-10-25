@@ -413,7 +413,7 @@ class MainWindow(QMainWindow):
         self.active_worker.progress.connect(self._on_worker_progress)
         self.active_worker.rate_limit_wait.connect(self._on_rate_limit)
         self.active_worker.rate_limit_cleared.connect(self._on_rate_limit_cleared)
-        self.active_worker.finished.connect(self._on_worker_finished)
+        self.active_worker.completed.connect(self._on_worker_finished)
         self.active_worker.failed.connect(self._on_worker_failed)
         self.active_worker.start()
 
@@ -470,8 +470,19 @@ class MainWindow(QMainWindow):
     def _open_output_folder(self):
         folder = self.last_output_dir or Path(self.txt_output_path.text().strip()).parent
         if folder.exists():
-            import subprocess
-            subprocess.run(f'explorer "{folder}"', shell=True)
+            import os
+            try:
+                os.startfile(str(folder))
+            except Exception:
+                import subprocess
+                subprocess.Popen(["explorer", str(folder)])
+
+    def closeEvent(self, event):
+        """Ensure background worker is cleanly cancelled and waited on before exit."""
+        if self.active_worker and self.active_worker.isRunning():
+            self.active_worker.cancel()
+            self.active_worker.wait(2000)
+        event.accept()
 
     def _update_elapsed_time(self):
         elapsed = int(time.time() - self.start_timestamp)

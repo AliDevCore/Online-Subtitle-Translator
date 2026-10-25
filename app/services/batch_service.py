@@ -6,9 +6,11 @@ Ensures failure isolation, queue management, and resumable execution.
 from __future__ import annotations
 import logging
 import uuid
+import re
 from pathlib import Path
 from typing import List, Optional, Callable, Any
 
+from app.core.config import LANG_NAME_MAP
 from app.core.database import Database
 from app.core.types import JobStatus
 from app.core.srt_parser import SRTParser
@@ -17,6 +19,7 @@ from app.services.translation_service import TranslationService
 logger = logging.getLogger("OnlineSubtitleTranslator.BatchService")
 
 SUBTITLE_EXTENSIONS = {".srt"}
+KNOWN_LANG_CODES = set(LANG_NAME_MAP.keys())
 
 
 class BatchTranslationItem:
@@ -59,8 +62,8 @@ class BatchService:
         translation_service: Optional[TranslationService] = None,
         database: Optional[Database] = None
     ):
-        self.translator = translation_service or TranslationService()
-        self.db = database or Database()
+        self.translator = translation_service or TranslationService(database=database)
+        self.db = database or self.translator.db
         self.translation_queue: List[BatchTranslationItem] = []
 
     @property
@@ -85,12 +88,28 @@ class BatchService:
     def clear_translations(self) -> None:
         self.translation_queue.clear()
 
+    @staticmethod
+    def is_already_translated_file(filename: str, current_target_lang: str) -> bool:
+        """Determine if an SRT filename already represents an output subtitle (e.g. movie.fa.srt)."""
+        lower = filename.lower()
+        if lower.endswith(f".{current_target_lang.lower()}.srt"):
+            return True
+
+        # Check against any known target language code, e.g. .fa.srt, .ar.srt
+        m = re.search(r'\.([a-z]{2,3})\.srt$', lower)
+        if m:
+            code = m.group(1)
+            # If the code is among the supported target languages (excluding English 'en')
+            if code in KNOWN_LANG_CODES and code != "en":
+                return True
+        return False
+
     def scan_srt_folder(
         self,
         folder_path: Path | str,
         target_language: str = "fa"
     ) -> List[BatchTranslationItem]:
-        """Scan a directory for SRT files, ignoring already translated .{target_lang}.srt files."""
+        """Scan a directory for SRT files, filtering out already translated language files."""
         folder = Path(folder_path)
         if not folder.exists() or not folder.is_dir():
             return []
@@ -99,7 +118,7 @@ class BatchService:
         candidates = sorted(
             [
                 p for p in folder.iterdir()
-                if p.is_file() and p.suffix.lower() == ".srt" and not p.name.endswith(f".{target_language}.srt")
+                if p.is_file() and p.suffix.lower() == ".srt" and not self.is_already_translated_file(p.name, target_language)
             ],
             key=lambda x: x.name.lower()
         )
@@ -131,6 +150,10 @@ class BatchService:
             if cancel_token and getattr(cancel_token, "is_cancelled", False):
                 logger.info("Translation batch execution cancelled by user.")
                 item.status = JobStatus.CANCELLED
+                # Mark all remaining unstarted items as CANCELLED as well
+                for remaining in self.translation_queue[idx:]:
+                    if remaining.status == JobStatus.PENDING:
+                        remaining.status = JobStatus.CANCELLED
                 break
 
             if item.status == JobStatus.COMPLETED:
@@ -161,9 +184,13 @@ class BatchService:
                 item.status = JobStatus.COMPLETED
 
             except Exception as e:
-                logger.error(f"Failed to translate batch subtitle item {item.srt_path.name}: {e}")
-                item.status = JobStatus.FAILED
-                item.error_msg = str(e)
+                if cancel_token and getattr(cancel_token, "is_cancelled", False):
+                    item.status = JobStatus.CANCELLED
+                    item.error_msg = "Cancelled by user"
+                else:
+                    logger.error(f"Failed to translate batch subtitle item {item.srt_path.name}: {e}")
+                    item.status = JobStatus.FAILED
+                    item.error_msg = str(e)
 
             done_pct = int((idx / max(total, 1)) * 100)
             if item_callback:

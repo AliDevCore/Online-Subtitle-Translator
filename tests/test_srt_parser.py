@@ -15,7 +15,6 @@ def test_parse_valid_srt(sample_srt_text):
     assert sub.cues[0].start_str == "00:00:01,000"
     assert sub.cues[0].end_str == "00:00:04,500"
     assert sub.cues[0].text == "Hello and welcome to the tutorial."
-
     assert sub.cues[2].text == "Let's get started right away."
 
 
@@ -38,6 +37,54 @@ def test_parse_with_bom():
     sub = SRTParser.parse_text(text_with_bom)
     assert len(sub.cues) == 1
     assert sub.cues[0].text == "BOM Test"
+
+
+def test_parse_cue_with_internal_blank_line():
+    text = (
+        "1\n"
+        "00:00:01,000 --> 00:00:03,500\n"
+        "First dialogue line\n\n"
+        "- Second speaker line\n\n"
+        "2\n"
+        "00:00:04,000 --> 00:00:06,000\n"
+        "Subsequent cue text\n"
+    )
+    sub = SRTParser.parse_text(text)
+    assert len(sub.cues) == 2
+    assert "First dialogue line\n\n- Second speaker line" == sub.cues[0].text
+    assert sub.cues[1].text == "Subsequent cue text"
+
+
+def test_parse_cp1256_arabic_persian_subtitles(tmp_path):
+    persian_srt = (
+        "1\n"
+        "00:00:01,000 --> 00:00:03,000\n"
+        "\u0633\u0644\u0627\u0645 \u062e\u0648\u0628\u064a\u062f\n"
+    )
+    raw_cp1256 = persian_srt.encode("cp1256")
+    file_path = tmp_path / "persian_cp1256.srt"
+    file_path.write_bytes(raw_cp1256)
+
+    sub = SRTParser.parse_file(file_path)
+    assert len(sub.cues) == 1
+    assert sub.cues[0].text == "\u0633\u0644\u0627\u0645 \u062e\u0648\u0628\u064a\u062f"
+
+
+def test_atomic_write_and_overwrite_protection(tmp_path):
+    sub = SubtitleFile(cues=[SubtitleCue(1, 1000, 2000, "Sample")], language="en")
+    target = tmp_path / "test_write.srt"
+
+    # Initial write
+    SRTParser.write_file(sub, target, overwrite=False)
+    assert target.exists()
+
+    # Disallowed overwrite
+    with pytest.raises(FileExistsError):
+        SRTParser.write_file(sub, target, overwrite=False)
+
+    # Allowed overwrite
+    SRTParser.write_file(sub, target, overwrite=True)
+    assert target.exists()
 
 
 def test_validate_cues():
