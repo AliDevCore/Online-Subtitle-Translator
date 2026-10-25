@@ -24,7 +24,7 @@ from app.providers.base import BaseTranslationProvider
 logger = logging.getLogger("OnlineSubtitleTranslator.Gemini")
 
 GEMINI_API_BASE = "https://generativelanguage.googleapis.com/v1beta"
-CHUNK_SIZE = 80
+CHUNK_SIZE = 220  # Optimized for Gemini Flash 8,192 token limit and 15 RPM safety
 
 GEMINI_FLASH_ROTATION_POOL: List[str] = [
     "gemini-3-flash-preview",
@@ -400,5 +400,12 @@ class GeminiTranslationProvider(BaseTranslationProvider):
                 cancel_token=cancel_token
             )
             all_translated_cues.extend(trans_chunk)
+
+            # Gentle pacing pause between chunks to stay strictly within Gemini Free Tier 15 RPM
+            if chunk_idx < len(chunks):
+                for _ in range(20):  # 2.0s sleep in 100ms intervals for responsive cancellation
+                    if cancel_token and getattr(cancel_token, "is_cancelled", False):
+                        raise RuntimeError("Operation cancelled by user.")
+                    time.sleep(0.1)
 
         return SubtitleFile(cues=all_translated_cues, language=target_language)
