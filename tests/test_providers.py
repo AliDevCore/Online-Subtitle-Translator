@@ -48,7 +48,8 @@ def test_gemini_translation_preserves_timestamps(mock_rot):
     assert len(sub_out.cues) == 1
     assert sub_out.cues[0].start_ms == 1000
     assert sub_out.cues[0].end_ms == 4500
-    assert sub_out.cues[0].text == "سلام و به آموزش خوش آمدید."
+    # Trailing period is stripped by clean_trailing_punctuation
+    assert sub_out.cues[0].text == "سلام و به آموزش خوش آمدید"
     assert sub_out.language == "fa"
 
 
@@ -105,7 +106,8 @@ def test_cloudflare_translation_chunking(mock_post):
     assert len(sub_out.cues) == 1
     assert sub_out.cues[0].start_ms == 1000
     assert sub_out.cues[0].end_ms == 4500
-    assert sub_out.cues[0].text == "سلام و خوش آمدید."
+    # Trailing period is stripped by clean_trailing_punctuation
+    assert sub_out.cues[0].text == "سلام و خوش آمدید"
     assert sub_out.language == "fa"
 
 

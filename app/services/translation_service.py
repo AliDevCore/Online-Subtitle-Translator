@@ -121,6 +121,11 @@ class TranslationService:
                 cancel_token=cancel_token
             )
 
+            # Clean trailing punctuation from translated cues (strip trailing '.', '!', ',', '،' while keeping '?' / '؟')
+            # This is performed strictly on the generated translated cues; source_sub is never modified.
+            for cue in translated_sub.cues:
+                cue.text = SRTParser.clean_trailing_punctuation(cue.text)
+
             # 3. Validate translated SRT
             report(f"Validating translated {target_lang.upper()} subtitles...", 85)
             issues = SRTParser.validate_cues(translated_sub.cues)

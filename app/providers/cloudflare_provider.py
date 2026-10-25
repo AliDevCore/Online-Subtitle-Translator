@@ -349,4 +349,7 @@ class CloudflareTranslationProvider(BaseTranslationProvider):
             )
             all_translated_cues.extend(trans_chunk)
 
+        for c in all_translated_cues:
+            c.text = SRTParser.clean_trailing_punctuation(c.text)
+
         return SubtitleFile(cues=all_translated_cues, language=target_language)

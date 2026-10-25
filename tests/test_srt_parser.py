@@ -101,3 +101,33 @@ def test_validate_cues():
     ]
     issues = SRTParser.validate_cues(bad_cues)
     assert len(issues) >= 2
+
+
+def test_clean_trailing_punctuation():
+    """Verify that trailing !, ,, ،, . are removed while ? and ؟ are strictly preserved."""
+    # User's exact test cases
+    assert SRTParser.clean_trailing_punctuation("Listen!") == "Listen"
+    assert SRTParser.clean_trailing_punctuation("Oh, hi. Hey!") == "Oh, hi. Hey"
+    assert SRTParser.clean_trailing_punctuation("I didn't hear you.") == "I didn't hear you"
+    assert SRTParser.clean_trailing_punctuation("I tried to ring the bell,") == "I tried to ring the bell"
+    assert (
+        SRTParser.clean_trailing_punctuation("But the door was unlocked, so I just came in.")
+        == "But the door was unlocked, so I just came in"
+    )
+    assert SRTParser.clean_trailing_punctuation("Fucking faulty wiring.") == "Fucking faulty wiring"
+    assert SRTParser.clean_trailing_punctuation("Um, so, like, where's Mom?") == "Um, so, like, where's Mom?"
+
+    # Persian/Arabic punctuation test cases
+    assert SRTParser.clean_trailing_punctuation("سلام خوبی؟") == "سلام خوبی؟"
+    assert SRTParser.clean_trailing_punctuation("گوش بده!") == "گوش بده"
+    assert SRTParser.clean_trailing_punctuation("در قفل نبود،") == "در قفل نبود"
+    assert SRTParser.clean_trailing_punctuation("اومدم تو.") == "اومدم تو"
+
+    # Multi-line dialogue in single cue
+    multiline = "- سلام، خوبی؟\n- سلام! منم خوبم."
+    expected_multiline = "- سلام، خوبی؟\n- سلام! منم خوبم"
+    assert SRTParser.clean_trailing_punctuation(multiline) == expected_multiline
+
+    # Formatting tags
+    assert SRTParser.clean_trailing_punctuation("<i>Listen!</i>") == "<i>Listen</i>"
+    assert SRTParser.clean_trailing_punctuation("<i>Where's Mom?</i>") == "<i>Where's Mom?</i>"
