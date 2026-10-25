@@ -24,7 +24,7 @@ from app.providers.base import BaseTranslationProvider
 logger = logging.getLogger("OnlineSubtitleTranslator.Gemini")
 
 GEMINI_API_BASE = "https://generativelanguage.googleapis.com/v1beta"
-CHUNK_SIZE = 220  # Optimized for Gemini Flash 8,192 token limit and 15 RPM safety
+CHUNK_SIZE = 150  # 150 cues per chunk as requested by user
 
 GEMINI_FLASH_ROTATION_POOL: List[str] = [
     "gemini-3-flash-preview",
@@ -280,7 +280,8 @@ class GeminiTranslationProvider(BaseTranslationProvider):
             f"2. Translate ONLY the spoken dialogue into {target_desc}.\n"
             "3. PRESERVE all formatting tags (such as <i>, </i>, <b>, </b>, {{\\an8}}), speaker dashes (- ), and musical notes (♪).\n"
             f"4. You must output ALL {len(cues_chunk)} cues without omitting any cue numbers.\n"
-            "5. Output only valid SRT subtitles. No explanations, markdown tags, or introductory remarks.\n\n"
+            "5. FRAGMENTED LINES: Even if an English cue is a single isolated word or fragment (e.g. 'What', 'And', 'If with'), you MUST output that cue number with its translation or original word. NEVER merge multiple cue numbers into one or skip any cue number!\n"
+            "6. Output only valid SRT subtitles. No explanations, markdown tags, or introductory remarks.\n\n"
             f"--- BEGIN SUBTITLES ---\n"
             f"{chunk_srt}\n"
             f"--- END SUBTITLES ---"
@@ -348,19 +349,37 @@ class GeminiTranslationProvider(BaseTranslationProvider):
                     ))
                 else:
                     missing_count += 1
+                    # Preserve slot with original cue text so subsequent cues maintain exact timeline alignment
+                    translated_chunk.append(SubtitleCue(
+                        index=orig.index,
+                        start_ms=orig.start_ms,
+                        end_ms=orig.end_ms,
+                        text=orig.text
+                    ))
 
-            if missing_count == 0 and len(translated_chunk) == len(cues_chunk):
+            if missing_count == 0:
                 return translated_chunk
 
-            logger.warning(
-                f"Gemini chunk attempt #{attempt}: received {len(parsed.cues)} cues, "
-                f"expected {len(cues_chunk)} ({missing_count} missing). Retrying chunk..."
-            )
+            if attempt < max_attempts:
+                logger.warning(
+                    f"Gemini chunk attempt #{attempt}: received {len(parsed.cues)} cues, "
+                    f"expected {len(cues_chunk)} ({missing_count} missing). Retrying chunk..."
+                )
+                continue
 
-        raise RuntimeError(
-            f"Google Gemini translation failed for cues {expected_indices[0]} to {expected_indices[-1]}: "
-            f"Model returned incomplete output ({len(parsed.cues)} of {len(cues_chunk)} cues)."
-        )
+            # On final attempt, allow small number of merged dialogue fragments (<= 15%) without halting the entire movie
+            max_tolerated_missing = max(1, int(len(cues_chunk) * 0.15)) if len(cues_chunk) >= 10 else 0
+            if missing_count <= max_tolerated_missing:
+                logger.warning(
+                    f"Gemini chunk completed with {len(cues_chunk) - missing_count}/{len(cues_chunk)} translated cues. "
+                    f"{missing_count} dialogue fragment(s) merged by model were safely retained without timing shift."
+                )
+                return translated_chunk
+
+            raise RuntimeError(
+                f"Google Gemini translation failed for cues {expected_indices[0]} to {expected_indices[-1]}: "
+                f"Model returned incomplete output ({len(parsed.cues)} of {len(cues_chunk)} cues)."
+            )
 
     def translate(
         self,

@@ -160,10 +160,10 @@ def test_cue_mismatch_raises_clear_error_not_silent_copy(mock_post):
 
 
 def test_provider_chunk_sizes():
-    """Verify Gemini uses ~220 cues per chunk while Cloudflare uses 80 cues."""
+    """Verify Gemini uses 150 cues per chunk while Cloudflare uses 80 cues."""
     from app.providers.gemini_provider import CHUNK_SIZE as GEMINI_CHUNK
     from app.providers.cloudflare_provider import CHUNK_SIZE as CF_CHUNK
 
-    assert 200 <= GEMINI_CHUNK <= 250, f"Gemini chunk size should be between 200 and 250, got {GEMINI_CHUNK}"
+    assert GEMINI_CHUNK == 150, f"Gemini chunk size should be 150, got {GEMINI_CHUNK}"
     assert CF_CHUNK == 80, f"Cloudflare chunk size should be 80, got {CF_CHUNK}"
 

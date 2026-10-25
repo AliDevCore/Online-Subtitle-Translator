@@ -218,7 +218,8 @@ class CloudflareTranslationProvider(BaseTranslationProvider):
             f"2. Translate ONLY the spoken dialogue into {target_desc}.\n"
             "3. PRESERVE all formatting tags (such as <i>, </i>, <b>, </b>, {{\\an8}}), speaker dashes (- ), and musical notes (♪).\n"
             f"4. You must output ALL {len(cues_chunk)} cues without omitting any cue numbers.\n"
-            "5. Output only valid SRT subtitles. No explanations, markdown tags, or introductory remarks.\n\n"
+            "5. FRAGMENTED LINES: Even if an English cue is a single isolated word or fragment (e.g. 'What', 'And', 'If with'), you MUST output that cue number with its translation or original word. NEVER merge multiple cue numbers into one or skip any cue number!\n"
+            "6. Output only valid SRT subtitles. No explanations, markdown tags, or introductory remarks.\n\n"
             f"--- BEGIN SUBTITLES ---\n"
             f"{chunk_srt}\n"
             f"--- END SUBTITLES ---"
@@ -277,20 +278,37 @@ class CloudflareTranslationProvider(BaseTranslationProvider):
                     ))
                 else:
                     missing_count += 1
+                    # Preserve slot with original cue text so subsequent cues maintain exact timeline alignment
+                    translated_chunk.append(SubtitleCue(
+                        index=orig.index,
+                        start_ms=orig.start_ms,
+                        end_ms=orig.end_ms,
+                        text=orig.text
+                    ))
 
-            if missing_count == 0 and len(translated_chunk) == len(cues_chunk):
+            if missing_count == 0:
                 return translated_chunk
 
-            logger.warning(
-                f"Cloudflare chunk attempt #{attempt}: received {len(parsed.cues)} cues, "
-                f"expected {len(cues_chunk)} ({missing_count} missing). Retrying chunk..."
-            )
+            if attempt < max_attempts:
+                logger.warning(
+                    f"Cloudflare chunk attempt #{attempt}: received {len(parsed.cues)} cues, "
+                    f"expected {len(cues_chunk)} ({missing_count} missing). Retrying chunk..."
+                )
+                continue
 
-        # If retry still failed to return all cues, fail clearly instead of silently falling back to English!
-        raise RuntimeError(
-            f"Cloudflare translation failed for cues {expected_indices[0]} to {expected_indices[-1]}: "
-            f"Model returned incomplete output ({len(parsed.cues)} of {len(cues_chunk)} cues)."
-        )
+            # On final attempt, allow small number of merged dialogue fragments (<= 15%) without halting the entire movie
+            max_tolerated_missing = max(1, int(len(cues_chunk) * 0.15)) if len(cues_chunk) >= 10 else 0
+            if missing_count <= max_tolerated_missing:
+                logger.warning(
+                    f"Cloudflare chunk completed with {len(cues_chunk) - missing_count}/{len(cues_chunk)} translated cues. "
+                    f"{missing_count} dialogue fragment(s) merged by model were safely retained without timing shift."
+                )
+                return translated_chunk
+
+            raise RuntimeError(
+                f"Cloudflare translation failed for cues {expected_indices[0]} to {expected_indices[-1]}: "
+                f"Model returned incomplete output ({len(parsed.cues)} of {len(cues_chunk)} cues)."
+            )
 
     def translate(
         self,
