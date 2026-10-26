@@ -95,7 +95,8 @@ def build():
             exe_path = UTILITY_DEST / "Online Subtitle Translator.exe"
             print(f"Deployment complete! Executable is ready at:\n{exe_path}")
         except Exception as e:
-            print(f"Note: Local utility deployment skipped ({e}). Build in dist is ready.")
+            print(f"\nERROR: Local utility deployment failed ({e}). Check if the application is currently running!")
+            raise
     else:
         print("\nNote: Local utility deployment skipped (no local utility directory). Build in dist is ready.")
 

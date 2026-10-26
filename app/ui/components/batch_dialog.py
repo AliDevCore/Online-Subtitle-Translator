@@ -5,15 +5,16 @@ and real-time multi-account failover resilience.
 """
 
 from __future__ import annotations
+from datetime import datetime
 from pathlib import Path
 from typing import List, Optional
 from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QPushButton, QTableWidget,
     QTableWidgetItem, QFileDialog, QHeaderView, QMessageBox, QLabel,
-    QWidget, QProgressBar, QFrame, QComboBox
+    QWidget, QProgressBar, QFrame, QComboBox, QPlainTextEdit
 )
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QColor
+from PySide6.QtGui import QColor, QTextCursor
 
 from app.core.config import (
     VERIFIED_TRANSLATION_PROVIDERS,
@@ -31,9 +32,10 @@ class BatchDialog(QDialog):
         super().__init__(parent)
         self.batch_service = batch_service
         self.worker: Optional[TranslationBatchWorker] = None
+        self._current_processing_name: Optional[str] = None
 
         self.setWindowTitle("Online Subtitle Translator — Batch Subtitle Queue")
-        self.resize(850, 560)
+        self.resize(880, 680)
         app_icon = get_app_icon()
         if not app_icon.isNull():
             self.setWindowIcon(app_icon)
@@ -156,6 +158,28 @@ class BatchDialog(QDialog):
 
         main_layout.addLayout(bottom_bar)
 
+        # Current File Live Log Box (cleared per file)
+        self.lbl_file_log_title = QLabel("📄 Current File Live Progress:")
+        self.lbl_file_log_title.setStyleSheet("font-weight: 600; font-size: 12px; color: #94a3b8;")
+        main_layout.addWidget(self.lbl_file_log_title)
+
+        self.txt_file_log = QPlainTextEdit()
+        self.txt_file_log.setReadOnly(True)
+        self.txt_file_log.setFixedHeight(130)
+        self.txt_file_log.setPlaceholderText("Live progress logs for the currently translating subtitle will appear here...")
+        self.txt_file_log.setStyleSheet(
+            "QPlainTextEdit {"
+            "  background-color: #0f172a;"
+            "  color: #e2e8f0;"
+            "  border: 1px solid #334155;"
+            "  border-radius: 6px;"
+            "  font-family: Consolas, 'Segoe UI Mono', monospace;"
+            "  font-size: 11px;"
+            "  padding: 6px;"
+            "}"
+        )
+        main_layout.addWidget(self.txt_file_log)
+
     def _on_target_lang_changed(self):
         target_code = self.combo_target_lang.currentData()
         for item in self.batch_service.translation_queue:
@@ -270,6 +294,8 @@ class BatchDialog(QDialog):
         self.btn_remove.setEnabled(False)
         self.btn_clear.setEnabled(False)
         self.progress_bar.setValue(0)
+        self._current_processing_name = None
+        self.txt_file_log.clear()
 
         self.worker = TranslationBatchWorker(
             batch_service=self.batch_service,
@@ -282,11 +308,29 @@ class BatchDialog(QDialog):
         self.worker.rate_limit_cleared.connect(self._on_rate_limit_cleared)
         self.worker.batch_finished.connect(self._on_batch_finished)
         self.worker.failed.connect(self._on_batch_error)
+        self.worker.log_emitted.connect(self._on_log_message)
         self.worker.start()
+
+    def _on_log_message(self, line: str):
+        self.txt_file_log.appendPlainText(line)
+        self.txt_file_log.moveCursor(QTextCursor.End)
 
     def _on_item_updated(self, name: str, idx: int, total: int, status: str, pct: int):
         self._refresh_table()
         self.progress_bar.setValue(max(0, min(100, pct)))
+
+        if status == "TRANSLATING":
+            if self._current_processing_name != name:
+                self._current_processing_name = name
+                # Clean textbox for the new file (strictly non-cumulative)
+                self.txt_file_log.clear()
+                time_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                self.txt_file_log.appendPlainText(f"[{time_str}] Started translating ({idx}/{total}): {name}")
+                self.txt_file_log.moveCursor(QTextCursor.End)
+        elif status == "COMPLETED" and self._current_processing_name == name:
+            time_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            self.txt_file_log.appendPlainText(f"[{time_str}] [100%] Subtitle translation completed for: {name}")
+            self.txt_file_log.moveCursor(QTextCursor.End)
 
     def _on_rate_limit(self, provider: str, remaining_sec: int, attempt: int, reason: str):
         self.rate_limit_frame.show()
@@ -301,6 +345,13 @@ class BatchDialog(QDialog):
         self.progress_bar.setValue(100)
         self._reset_ui_state()
         self._refresh_table()
+
+        time_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        self.txt_file_log.appendPlainText(
+            f"[{time_str}] Batch Translation Completed! Successful: {success_count}, Failed: {failed_count}"
+        )
+        self.txt_file_log.moveCursor(QTextCursor.End)
+
         msg = f"Batch Translation Finished!\n\nSuccessfully Translated: {success_count}\nFailed: {failed_count}"
         if cancelled_count > 0:
             msg += f"\nCancelled / Unprocessed: {cancelled_count}"
@@ -316,10 +367,16 @@ class BatchDialog(QDialog):
     def _on_batch_error(self, error: str):
         self._reset_ui_state()
         self._refresh_table()
+        time_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        self.txt_file_log.appendPlainText(f"[{time_str}] [ERROR] Batch execution error: {error}")
+        self.txt_file_log.moveCursor(QTextCursor.End)
         QMessageBox.critical(self, "Batch Error", f"Batch execution error:\n{error}")
 
     def _cancel_batch(self):
         if self.worker and self.worker.isRunning():
+            time_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            self.txt_file_log.appendPlainText(f"[{time_str}] [WARNING] Batch cancellation requested by user...")
+            self.txt_file_log.moveCursor(QTextCursor.End)
             self.worker.cancel()
             self.btn_cancel.setEnabled(False)
 
