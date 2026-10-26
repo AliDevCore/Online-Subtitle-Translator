@@ -17,17 +17,21 @@ DIST_DIR = ROOT_DIR / "dist"
 BUILD_DIR = ROOT_DIR / "build"
 SPEC_FILE = ROOT_DIR / "packaging" / "OnlineSubtitleTranslator.spec"
 
-# Local deployment directory (optional)
-_deploy_override = os.environ.get("DEPLOY_DIR")
-if _deploy_override:
-    UTILITY_DEST = Path(_deploy_override)
+# Local deployment directory (skipped on CI / GitHub Actions)
+if os.environ.get("GITHUB_ACTIONS") or os.environ.get("CI"):
+    UTILITY_DEST = None
 else:
-    # Explicit user utility path: C:\Ali\Utility\Online Subtitle Translator
-    _canonical_utility = Path(r"C:\Ali\Utility\Online Subtitle Translator")
-    if _canonical_utility.parent.exists():
-        UTILITY_DEST = _canonical_utility
+    _deploy_override = os.environ.get("DEPLOY_DIR")
+    if _deploy_override:
+        UTILITY_DEST = Path(_deploy_override)
     else:
-        UTILITY_DEST = Path.home() / "Utility" / "Online Subtitle Translator"
+        # Explicit user utility path: C:\Ali\Utility\Online Subtitle Translator
+        _canonical = Path(r"C:\Ali\Utility\Online Subtitle Translator")
+        if _canonical.parent.exists():
+            UTILITY_DEST = _canonical
+        else:
+            UTILITY_DEST = None
+
 
 
 def build():
@@ -79,8 +83,8 @@ def build():
         if src.exists():
             shutil.copy2(src, built_app_dir / doc)
 
-    # 3. Deploy to local utility folder if configured / present
-    if UTILITY_DEST and UTILITY_DEST.parent.exists():
+    # 3. Deploy to local utility folder
+    if UTILITY_DEST:
         try:
             print(f"\nDeploying to User Utility directory: {UTILITY_DEST}...")
             UTILITY_DEST.mkdir(parents=True, exist_ok=True)

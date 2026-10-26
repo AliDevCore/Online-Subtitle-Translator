@@ -7,7 +7,13 @@ on:
       - master
     tags:
       - 'v*'
+      - '[0-9]+.*'
   workflow_dispatch:
+    inputs:
+      tag_name:
+        description: 'Release Tag Name (optional, defaults to v1.0.<run_number>)'
+        required: false
+        default: ''
 
 permissions:
   contents: write
@@ -58,7 +64,11 @@ jobs:
         id: versioning
         shell: pwsh
         run: |
-          if ("${{ github.ref }}".StartsWith("refs/tags/v")) {
+          $manualTag = "${{ inputs.tag_name }}".Trim()
+          if ($manualTag -ne "") {
+            $tag = $manualTag
+            $title = "Online Subtitle Translator $tag"
+          } elseif ("${{ github.ref }}".StartsWith("refs/tags/")) {
             $tag = "${{ github.ref_name }}"
             $title = "Online Subtitle Translator $tag"
           } else {
