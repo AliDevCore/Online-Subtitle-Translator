@@ -66,8 +66,20 @@ def build():
 
     print(f"Build succeeded at: {built_app_dir}")
 
-    # Add portable flag
-    (built_app_dir / "portable.txt").write_text("Online Subtitle Translator Portable Mode Enabled\n", encoding="utf-8")
+    # Portable mode handling
+    portable_flag = "--portable" in sys.argv
+    portable_file = built_app_dir / "portable.txt"
+    data_dir = built_app_dir / "data"
+
+    if portable_flag:
+        portable_file.write_text("Online Subtitle Translator Portable Mode Enabled\n", encoding="utf-8")
+        print("Portable mode enabled (portable.txt created).")
+    else:
+        if portable_file.exists():
+            portable_file.unlink()
+        if data_dir.exists():
+            shutil.rmtree(data_dir, ignore_errors=True)
+        print("Standard mode build (portable mode disabled, portable.txt omitted).")
 
     # Copy assets directory directly beside executable
     assets_src = ROOT_DIR / "assets"
@@ -96,6 +108,16 @@ def build():
                     shutil.copytree(item, dest)
                 else:
                     shutil.copy2(item, dest)
+
+            # Ensure portable.txt and data/ are cleaned from utility folder if not portable
+            if not portable_flag:
+                util_portable = UTILITY_DEST / "portable.txt"
+                if util_portable.exists():
+                    util_portable.unlink()
+                util_data = UTILITY_DEST / "data"
+                if util_data.exists():
+                    shutil.rmtree(util_data, ignore_errors=True)
+
             exe_path = UTILITY_DEST / "Online Subtitle Translator.exe"
             print(f"Deployment complete! Executable is ready at:\n{exe_path}")
         except Exception as e:

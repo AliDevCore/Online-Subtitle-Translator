@@ -34,3 +34,4 @@ data/
 .idea/
 *.swp
 Thumbs.db
+*.code-workspace

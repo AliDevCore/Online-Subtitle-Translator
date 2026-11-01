@@ -71,6 +71,7 @@ ensure_data_dirs()
 # Centralized Language definitions
 SUPPORTED_TARGET_LANGUAGES: List[Dict[str, str]] = [
     {"code": "fa", "name": "Persian (فارسی)", "native": "فارسی"},
+    {"code": "en", "name": "English", "native": "English"},
     {"code": "ar", "name": "Arabic (العربية)", "native": "العربية"},
     {"code": "es", "name": "Spanish (Español)", "native": "Español"},
     {"code": "fr", "name": "French (Français)", "native": "Français"},
@@ -93,6 +94,7 @@ SUPPORTED_TARGET_LANGUAGES: List[Dict[str, str]] = [
 
 LANG_NAME_MAP: Dict[str, str] = {
     "fa": "natural Persian (فارسی)",
+    "en": "fluent English",
     "ar": "fluent Arabic (العربية)",
     "es": "fluent Spanish (Español)",
     "fr": "fluent French (Français)",
@@ -112,6 +114,8 @@ LANG_NAME_MAP: Dict[str, str] = {
     "sv": "fluent Swedish (Svenska)",
     "pl": "fluent Polish (Polski)",
 }
+
+KNOWN_LANG_CODES: set[str] = set(LANG_NAME_MAP.keys())
 
 
 def get_app_icon():

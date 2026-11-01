@@ -24,7 +24,7 @@ class BaseTranslationProvider(ABC):
         cancel_token: Optional[Any] = None
     ) -> SubtitleFile:
         """
-        Translate English SubtitleFile into target language (default Persian / fa).
+        Translate SubtitleFile into target language (default Persian / fa).
         MUST preserve cue numbering, timestamps, ordering, and structure.
         """
         pass

@@ -10,7 +10,7 @@ import re
 from pathlib import Path
 from typing import List, Optional, Callable, Any
 
-from app.core.config import LANG_NAME_MAP
+from app.core.config import LANG_NAME_MAP, KNOWN_LANG_CODES
 from app.core.database import Database
 from app.core.types import JobStatus
 from app.core.srt_parser import SRTParser
@@ -19,7 +19,6 @@ from app.services.translation_service import TranslationService
 logger = logging.getLogger("OnlineSubtitleTranslator.BatchService")
 
 SUBTITLE_EXTENSIONS = {".srt"}
-KNOWN_LANG_CODES = set(LANG_NAME_MAP.keys())
 
 
 class BatchTranslationItem:
@@ -92,8 +91,13 @@ class BatchService:
     def is_already_translated_file(filename: str, current_target_lang: str) -> bool:
         """Determine if an SRT filename already represents an output subtitle (e.g. movie.fa.srt)."""
         lower = filename.lower()
-        if lower.endswith(f".{current_target_lang.lower()}.srt"):
+        target = current_target_lang.lower()
+        if lower.endswith(f".{target}.srt"):
             return True
+
+        # If current target is English, non-English subtitle files (.fa.srt, .es.srt, etc.) are valid source files.
+        if target == "en":
+            return False
 
         # Check against any known target language code, e.g. .fa.srt, .ar.srt
         m = re.search(r'\.([a-z]{2,3})\.srt$', lower)

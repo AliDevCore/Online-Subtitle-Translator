@@ -23,16 +23,18 @@ class TranslationWorker(QThread):
     def __init__(
         self,
         translation_service: TranslationService,
-        english_srt_path: Path | str,
-        provider_id: str,
-        model_id: str,
+        english_srt_path: Optional[Path | str] = None,
+        provider_id: str = "gemini",
+        model_id: str = "gemini-3-flash-preview",
         target_lang: str = "fa",
         output_path: Optional[Path | str] = None,
-        parent=None
+        parent=None,
+        source_srt_path: Optional[Path | str] = None,
     ):
         super().__init__(parent)
         self.translation_service = translation_service
-        self.english_srt_path = english_srt_path
+        self.english_srt_path = source_srt_path or english_srt_path
+        self.source_srt_path = self.english_srt_path
         self.provider_id = provider_id
         self.model_id = model_id
         self.target_lang = target_lang

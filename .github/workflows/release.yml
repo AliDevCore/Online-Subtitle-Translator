@@ -24,6 +24,8 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -45,18 +47,27 @@ jobs:
         run: |
           python packaging/build_windows.py
 
-      - name: Create Portable Zip Package & Checksums
+      - name: Create Distribution Packages & Checksums
         shell: pwsh
         run: |
+          # 1. Standard package (without portable.txt)
+          Compress-Archive -Path "dist/Online Subtitle Translator/*" -DestinationPath "Online-Subtitle-Translator.zip" -Force
+
+          # 2. Portable package (with portable.txt)
+          "Online Subtitle Translator Portable Mode Enabled" | Out-File -Encoding utf8 "dist/Online Subtitle Translator/portable.txt"
           Compress-Archive -Path "dist/Online Subtitle Translator/*" -DestinationPath "Online-Subtitle-Translator-Portable.zip" -Force
-          $hash = (Get-FileHash -Algorithm SHA256 Online-Subtitle-Translator-Portable.zip).Hash
-          "$hash  Online-Subtitle-Translator-Portable.zip" | Out-File -Encoding utf8 SHA256SUMS.txt
+
+          # 3. Checksums
+          $hashStd = (Get-FileHash -Algorithm SHA256 Online-Subtitle-Translator.zip).Hash
+          $hashPort = (Get-FileHash -Algorithm SHA256 Online-Subtitle-Translator-Portable.zip).Hash
+          "$hashStd  Online-Subtitle-Translator.zip`n$hashPort  Online-Subtitle-Translator-Portable.zip" | Out-File -Encoding utf8 SHA256SUMS.txt
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Online-Subtitle-Translator-Windows-Portable
+          name: Online-Subtitle-Translator-Windows
           path: |
+            Online-Subtitle-Translator.zip
             Online-Subtitle-Translator-Portable.zip
             SHA256SUMS.txt
 
@@ -67,14 +78,23 @@ jobs:
           $manualTag = "${{ inputs.tag_name }}".Trim()
           if ($manualTag -ne "") {
             $tag = $manualTag
-            $title = "Online Subtitle Translator $tag"
           } elseif ("${{ github.ref }}".StartsWith("refs/tags/")) {
             $tag = "${{ github.ref_name }}"
-            $title = "Online Subtitle Translator $tag"
           } else {
-            $tag = "v1.0.${{ github.run_number }}"
-            $title = "Online Subtitle Translator v1.0.${{ github.run_number }}"
+            # Ensure all remote tags are known
+            git fetch --tags --force
+            $highestPatch = 0
+            git tag -l "v1.0.*" | ForEach-Object {
+              if ($_ -match '^v1\.0\.(\d+)$') {
+                $num = [int]$matches[1]
+                if ($num -gt $highestPatch) { $highestPatch = $num }
+              }
+            }
+            $runNum = [int]"${{ github.run_number }}"
+            $nextPatch = [Math]::Max($highestPatch + 1, $runNum)
+            $tag = "v1.0.$nextPatch"
           }
+          $title = "Online Subtitle Translator $tag"
           Write-Host "Target Tag: $tag"
           Write-Host "Release Title: $title"
           "tag=$tag" >> $env:GITHUB_OUTPUT
@@ -86,6 +106,7 @@ jobs:
           tag_name: ${{ steps.versioning.outputs.tag }}
           name: ${{ steps.versioning.outputs.title }}
           files: |
+            Online-Subtitle-Translator.zip
             Online-Subtitle-Translator-Portable.zip
             SHA256SUMS.txt
           generate_release_notes: true

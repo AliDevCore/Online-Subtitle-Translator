@@ -56,3 +56,21 @@ def test_batch_translation_failure_isolation(tmp_path):
     assert "Temporary parsing error" in results[0].error_msg
     assert results[1].status == JobStatus.COMPLETED
     assert results[1].generated_srt == tmp_path / "sub2.fa.srt"
+
+
+def test_batch_srt_folder_scan_for_english_target(tmp_path):
+    s_dir = tmp_path / "subtitles_multi"
+    s_dir.mkdir()
+    (s_dir / "persian_movie.fa.srt").write_text("1\n00:00:01,000 --> 00:00:02,000\nسلام\n", encoding="utf-8")
+    (s_dir / "spanish_movie.es.srt").write_text("1\n00:00:01,000 --> 00:00:02,000\nHola\n", encoding="utf-8")
+    (s_dir / "already_done.en.srt").write_text("1\n00:00:01,000 --> 00:00:02,000\nHello\n", encoding="utf-8")
+
+    service = BatchService()
+    items = service.scan_srt_folder(s_dir, target_language="en")
+
+    # Should find the 2 non-English SRTs and skip the already translated .en.srt!
+    assert len(items) == 2
+    names = [it.name for it in items]
+    assert "persian_movie.fa.srt" in names
+    assert "spanish_movie.es.srt" in names
+    assert "already_done.en.srt" not in names

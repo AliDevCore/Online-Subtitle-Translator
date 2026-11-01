@@ -6,10 +6,12 @@ while strictly preserving cue timing, sequence numbering, and formatting.
 
 from __future__ import annotations
 import logging
+import re
 import uuid
 from pathlib import Path
 from typing import Optional, Callable, Any
 
+from app.core.config import KNOWN_LANG_CODES
 from app.core.database import Database
 from app.core.srt_parser import SRTParser
 from app.core.types import SubtitleFile, JobStatus
@@ -29,10 +31,12 @@ class TranslationService:
         """Derive translated SRT path beside source SRT."""
         p = Path(srt_path)
         name = p.name
-        # If filename ends in .en.srt, change to .{target_lang}.srt
-        if name.endswith(".en.srt"):
-            target_name = name[:-7] + f".{target_lang}.srt"
-        elif name.endswith(".srt"):
+
+        # Check if filename ends with .<lang>.srt (e.g. .en.srt, .fa.srt, .es.srt)
+        m = re.search(r'\.([a-zA-Z]{2,3})\.srt$', name)
+        if m and m.group(1).lower() in KNOWN_LANG_CODES:
+            target_name = name[:m.start()] + f".{target_lang}.srt"
+        elif name.lower().endswith(".srt"):
             target_name = name[:-4] + f".{target_lang}.srt"
         else:
             target_name = f"{name}.{target_lang}.srt"
@@ -51,21 +55,25 @@ class TranslationService:
 
     def translate_srt(
         self,
-        english_srt_path: Path | str,
-        provider_id: str,
-        model_id: str,
+        english_srt_path: Optional[Path | str] = None,
+        provider_id: str = "gemini",
+        model_id: str = "gemini-3-flash-preview",
         target_lang: str = "fa",
         output_path: Optional[Path | str] = None,
         job_id: Optional[str] = None,
         progress_callback: Optional[Callable[[str, int], None]] = None,
-        cancel_token: Optional[Any] = None
+        cancel_token: Optional[Any] = None,
+        source_srt_path: Optional[Path | str] = None,
     ) -> Path:
         """
         Execute translation workflow on an existing SRT file.
         Safely records job states (PENDING, TRANSLATING, COMPLETED, FAILED, CANCELLED) in DB.
         Guarantees source file cannot be overwritten.
         """
-        srt_file = Path(english_srt_path).resolve()
+        raw_path = source_srt_path or english_srt_path
+        if not raw_path:
+            raise ValueError("No source subtitle file provided.")
+        srt_file = Path(raw_path).resolve()
         if not srt_file.exists():
             raise FileNotFoundError(f"SRT file not found: {srt_file}")
 

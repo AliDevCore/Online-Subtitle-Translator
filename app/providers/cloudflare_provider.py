@@ -218,7 +218,7 @@ class CloudflareTranslationProvider(BaseTranslationProvider):
             f"2. Translate ONLY the spoken dialogue into {target_desc}.\n"
             "3. PRESERVE all formatting tags (such as <i>, </i>, <b>, </b>, {{\\an8}}), speaker dashes (- ), and musical notes (♪).\n"
             f"4. You must output ALL {len(cues_chunk)} cues without omitting any cue numbers.\n"
-            "5. FRAGMENTED LINES: Even if an English cue is a single isolated word or fragment (e.g. 'What', 'And', 'If with'), you MUST output that cue number with its translation or original word. NEVER merge multiple cue numbers into one or skip any cue number!\n"
+            "5. FRAGMENTED LINES: Even if an original cue is a single isolated word or fragment, you MUST output that cue number with its translation or original word. NEVER merge multiple cue numbers into one or skip any cue number!\n"
             "6. Output only valid SRT subtitles. No explanations, markdown tags, or introductory remarks.\n\n"
             f"--- BEGIN SUBTITLES ---\n"
             f"{chunk_srt}\n"
