@@ -162,16 +162,16 @@ def test_cue_mismatch_raises_clear_error_not_silent_copy(mock_post):
 
 
 def test_provider_chunk_sizes():
-    """Verify Gemini uses 150 cues per chunk while Cloudflare defaults to 70 cues with per-model sizing."""
+    """Verify Gemini uses 150 cues per chunk while Cloudflare defaults to 35 cues with per-model sizing."""
     from app.providers.gemini_provider import CHUNK_SIZE as GEMINI_CHUNK
     from app.providers.cloudflare_provider import CHUNK_SIZE as CF_CHUNK, get_chunk_size_for_model
 
     assert GEMINI_CHUNK == 150, f"Gemini chunk size should be 150, got {GEMINI_CHUNK}"
-    assert CF_CHUNK == 70, f"Cloudflare default chunk size should be 70, got {CF_CHUNK}"
-    assert get_chunk_size_for_model("@cf/google/gemma-4-26b-a4b-it") == 70
-    assert get_chunk_size_for_model("@cf/qwen/qwen3.8-27b") == 60
-    assert get_chunk_size_for_model("@cf/openai/gpt-oss-120b") == 50
-    assert get_chunk_size_for_model("@cf/meta/llama-3.3-70b-instruct-fp8-fast") == 60
+    assert CF_CHUNK == 35, f"Cloudflare default chunk size should be 35, got {CF_CHUNK}"
+    assert get_chunk_size_for_model("@cf/google/gemma-4-26b-a4b-it") == 35
+    assert get_chunk_size_for_model("@cf/qwen/qwen3.8-27b") == 30
+    assert get_chunk_size_for_model("@cf/openai/gpt-oss-120b") == 30
+    assert get_chunk_size_for_model("@cf/meta/llama-3.3-70b-instruct-fp8-fast") == 35
 
 
 @patch("requests.post")

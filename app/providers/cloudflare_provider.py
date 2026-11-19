@@ -29,13 +29,13 @@ logger = logging.getLogger("OnlineSubtitleTranslator.Cloudflare")
 CLOUDFLARE_API_BASE = "https://api.cloudflare.com/client/v4/accounts"
 DEFAULT_CLOUDFLARE_MODEL = "@cf/google/gemma-4-26b-a4b-it"
 
-# Model-specific chunk sizes optimized for context limits, timeout prevention, and 1:1 cue alignment
-DEFAULT_CHUNK_SIZE = 70
+# Model-specific chunk sizes optimized for edge execution limits, timeout prevention, and 1:1 cue alignment
+DEFAULT_CHUNK_SIZE = 35
 MODEL_CHUNK_SIZES: Dict[str, int] = {
-    "@cf/google/gemma-4-26b-a4b-it": 70,
-    "@cf/qwen/qwen3.8-27b": 60,
-    "@cf/openai/gpt-oss-120b": 50,
-    "@cf/meta/llama-3.3-70b-instruct-fp8-fast": 60,
+    "@cf/google/gemma-4-26b-a4b-it": 35,
+    "@cf/meta/llama-3.3-70b-instruct-fp8-fast": 35,
+    "@cf/qwen/qwen3.8-27b": 30,
+    "@cf/openai/gpt-oss-120b": 30,
 }
 CHUNK_SIZE = DEFAULT_CHUNK_SIZE
 
@@ -95,12 +95,14 @@ class CloudflareTranslationProvider(BaseTranslationProvider):
         cancel_token: Optional[Any] = None,
         max_cycles: int = 5
     ) -> Dict[str, Any]:
-        if self.api_key and self.account_id:
+        # Always prioritize the full pool of configured accounts from CredentialManager
+        all_accounts = [a for a in CredentialManager.get_cloudflare_accounts() if a.get("configured")]
+        if not all_accounts and self.account_id and self.api_key:
             all_accounts = [{"index": 1, "account_id": self.account_id, "api_key": self.api_key, "configured": True}]
-        else:
-            all_accounts = [a for a in CredentialManager.get_cloudflare_accounts() if a.get("configured")]
-            if not all_accounts and self.account_id and self.api_key:
-                all_accounts = [{"index": 1, "account_id": self.account_id, "api_key": self.api_key, "configured": True}]
+        elif self.account_id and self.api_key:
+            # Ensure custom credentials passed to constructor are present if not already in pool
+            if not any(a.get("account_id") == self.account_id for a in all_accounts):
+                all_accounts.insert(0, {"index": 0, "account_id": self.account_id, "api_key": self.api_key, "configured": True})
 
         if not all_accounts:
             raise ValueError("No valid Cloudflare accounts configured. Please add an account in Settings.")
@@ -140,7 +142,7 @@ class CloudflareTranslationProvider(BaseTranslationProvider):
                 logger.info(f"Sending translation request to Cloudflare {self.model_id} (Account #{idx})...")
 
                 try:
-                    resp = requests.post(url, headers=headers, json=payload, timeout=90)
+                    resp = requests.post(url, headers=headers, json=payload, timeout=120)
                 except requests.RequestException as e:
                     logger.warning(f"Network error on Cloudflare Account #{idx}: {e}")
                     continue
@@ -183,7 +185,7 @@ class CloudflareTranslationProvider(BaseTranslationProvider):
                         simplified_payload.pop("reasoning_effort", None)
                         simplified_payload.pop("chat_template_kwargs", None)
                         try:
-                            retry_resp = requests.post(url, headers=headers, json=simplified_payload, timeout=90)
+                            retry_resp = requests.post(url, headers=headers, json=simplified_payload, timeout=120)
                             if retry_resp.status_code == 200:
                                 retry_data = retry_resp.json()
                                 if retry_data.get("success", False) or "result" in retry_data:
@@ -247,6 +249,7 @@ class CloudflareTranslationProvider(BaseTranslationProvider):
         """Build rigorous system and user prompts adhering to strict subtitle translation rules."""
         system_prompt = (
             f"You are a professional subtitle translator. Translate the provided subtitles from their original language into {target_desc}.\n\n"
+            "CRITICAL: Do NOT spend tokens on internal monologue, reasoning, or explanations. Output only the translated subtitles immediately.\n\n"
             "Translation Rules:\n\n"
             f"1. Translate every subtitle accurately and completely into {target_desc}. Do not omit, summarize, shorten, expand, or invent any dialogue.\n"
             f"2. Use natural, fluent, and conversational {target_desc} appropriate for subtitles, avoiding stiff or overly literal translations.\n"
@@ -301,7 +304,7 @@ class CloudflareTranslationProvider(BaseTranslationProvider):
                 }
             ],
             "temperature": 0.1,
-            "max_tokens": 4096,
+            "max_tokens": 8192,
         }
 
         # Selectively apply reasoning_effort for models that support it without 400 rejection
@@ -322,6 +325,8 @@ class CloudflareTranslationProvider(BaseTranslationProvider):
                 choices = result.get("choices", [])
                 if choices and isinstance(choices, list):
                     raw_text = choices[0].get("message", {}).get("content", "") or ""
+                    if not raw_text:
+                        raw_text = choices[0].get("text", "") or ""
                 if not raw_text:
                     raw_text = result.get("response", "") or ""
             elif isinstance(result, str):

@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.0.11] - 2026-11-19
+
+### Fixed
+- Fixed Cloudflare Workers AI `Read timed out` on long subtitles by reducing cue chunk sizes to optimal fast response ranges:
+  - Gemma 4 26B: 35 cues/chunk (~32s per chunk)
+  - Llama 3.3 70B Fast: 35 cues/chunk (~25s per chunk)
+  - Qwen 3.8 27B: 30 cues/chunk (~35s per chunk)
+  - GPT-OSS 120B: 30 cues/chunk (~38s per chunk)
+- Fixed multi-account pool rotation in `CloudflareTranslationProvider` so all configured accounts (Accounts #1 through #10) are utilized automatically instead of pinning strictly to Account #1.
+- Increased Cloudflare Workers AI network request timeout to 120 seconds to prevent premature disconnection during network latency fluctuations.
+
 ## [1.0.10] - 2026-11-19
 
 ### Added

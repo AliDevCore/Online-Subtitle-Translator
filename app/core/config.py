@@ -11,7 +11,7 @@ from typing import Dict, List, Optional
 from app.core.types import ProviderInfo
 
 APP_NAME = "Online Subtitle Translator"
-APP_VERSION = "1.0.10"
+APP_VERSION = "1.0.11"
 APP_AUTHOR = "Online Subtitle Project"
 
 # Determine base paths and portable mode
@@ -241,7 +241,7 @@ VERIFIED_TRANSLATION_PROVIDERS: List[ProviderInfo] = [
         pipeline="TRANSLATION",
         is_free=True,
         pricing_desc="10,000 Neurons/day free; Paid: $0.011 per 1,000 Neurons",
-        free_tier_desc="Speed: ⚡ Ultra-Fast (~30s) • 256K Context • 70 cues/chunk • Top Quality MoE",
+        free_tier_desc="Speed: ⚡ Ultra-Fast (~30s) • 256K Context • 35 cues/chunk • Top Quality MoE",
         supports_timestamps=True,
         max_duration_sec=0,
         requires_key=True,
@@ -256,7 +256,7 @@ VERIFIED_TRANSLATION_PROVIDERS: List[ProviderInfo] = [
         pipeline="TRANSLATION",
         is_free=True,
         pricing_desc="10,000 Neurons/day free; Paid: $0.011 per 1,000 Neurons",
-        free_tier_desc="Speed: ⚡ Standard (~56s) • 262K Context • 60 cues/chunk • Advanced Multilingual & Idiom Translation",
+        free_tier_desc="Speed: ⚡ Standard (~56s) • 262K Context • 30 cues/chunk • Advanced Multilingual & Idiom Translation",
         supports_timestamps=True,
         max_duration_sec=0,
         requires_key=True,
@@ -271,7 +271,7 @@ VERIFIED_TRANSLATION_PROVIDERS: List[ProviderInfo] = [
         pipeline="TRANSLATION",
         is_free=True,
         pricing_desc="10,000 Neurons/day free; Paid: $0.011 per 1,000 Neurons",
-        free_tier_desc="Speed: ⚡ Moderate (~42s) • 128K Context • 50 cues/chunk • Heavy MoE Flagship",
+        free_tier_desc="Speed: ⚡ Moderate (~42s) • 128K Context • 30 cues/chunk • Heavy MoE Flagship",
         supports_timestamps=True,
         max_duration_sec=0,
         requires_key=True,
@@ -286,7 +286,7 @@ VERIFIED_TRANSLATION_PROVIDERS: List[ProviderInfo] = [
         pipeline="TRANSLATION",
         is_free=True,
         pricing_desc="10,000 Neurons/day free; Paid: $0.011 per 1,000 Neurons",
-        free_tier_desc="Speed: ⚡ High Speed (~24s) • 128K Context • 60 cues/chunk • Quantized Edge Speed",
+        free_tier_desc="Speed: ⚡ High Speed (~24s) • 128K Context • 35 cues/chunk • Quantized Edge Speed",
         supports_timestamps=True,
         max_duration_sec=0,
         requires_key=True,
