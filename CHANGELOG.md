@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.0.10] - 2026-11-19
+
+### Added
+- Configured 4 verified high-performance Cloudflare Workers AI models with model-tailored chunk sizing:
+  1. Google Gemma 4 26B A4B IT (Default • ⚡ Ultra-Fast ~30s • 70 cues/chunk • Top quality cinematic translation)
+  2. Alibaba Qwen 3.8 27B (⚡ Standard ~56s • 60 cues/chunk • High Persian accuracy & idiom understanding)
+  3. OpenAI GPT-OSS 120B (⚡ Moderate ~42s • 50 cues/chunk • Low reasoning mode • 117B MoE)
+  4. Meta Llama 3.3 70B Fast (⚡ High Speed ~24s • 60 cues/chunk • FP8 edge accelerated)
+- Dynamic speed indicators in model dropdown menu for user transparency.
+- Strict reasoning/thinking deactivation payload logic to prevent token bloat and gateway timeouts.
+- Decoupled subtitle reconstruction guaranteeing 100% preservation of original indices and millisecond timestamps.
+- Trailing punctuation cleanup and thinking/markdown tag removal on generated subtitle cues.
+
 ## [1.0.0] - 2026-10-23
 
 ### Added

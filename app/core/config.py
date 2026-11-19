@@ -11,7 +11,7 @@ from typing import Dict, List, Optional
 from app.core.types import ProviderInfo
 
 APP_NAME = "Online Subtitle Translator"
-APP_VERSION = "1.0.0"
+APP_VERSION = "1.0.10"
 APP_AUTHOR = "Online Subtitle Project"
 
 # Determine base paths and portable mode
@@ -236,16 +236,61 @@ VERIFIED_TRANSLATION_PROVIDERS: List[ProviderInfo] = [
     ProviderInfo(
         provider_id="cloudflare",
         display_name="Cloudflare Workers AI",
-        model_id="@cf/meta/llama-3.1-8b-instruct",
-        model_display_name="Llama 3.1 8B Instruct (@cf/meta/llama-3.1-8b-instruct - Multi-Account Pool)",
+        model_id="@cf/google/gemma-4-26b-a4b-it",
+        model_display_name="Gemma 4 26B A4B IT (⚡ Ultra-Fast ~30s • Best Cinematic Persian)",
         pipeline="TRANSLATION",
         is_free=True,
         pricing_desc="10,000 Neurons/day free; Paid: $0.011 per 1,000 Neurons",
-        free_tier_desc="10,000 free daily Neurons per account across Workers AI",
+        free_tier_desc="Speed: ⚡ Ultra-Fast (~30s) • 256K Context • 70 cues/chunk • Top Quality MoE",
         supports_timestamps=True,
         max_duration_sec=0,
         requires_key=True,
-        doc_url="https://developers.cloudflare.com/workers-ai/models/llama-3.1-8b-instruct/",
-        verification_date="2026-10"
+        doc_url="https://developers.cloudflare.com/workers-ai/models/gemma-4-26b-a4b-it/",
+        verification_date="2026-11"
+    ),
+    ProviderInfo(
+        provider_id="cloudflare",
+        display_name="Cloudflare Workers AI",
+        model_id="@cf/qwen/qwen3.8-27b",
+        model_display_name="Qwen 3.8 27B (⚡ Standard Speed ~56s • High Persian Accuracy)",
+        pipeline="TRANSLATION",
+        is_free=True,
+        pricing_desc="10,000 Neurons/day free; Paid: $0.011 per 1,000 Neurons",
+        free_tier_desc="Speed: ⚡ Standard (~56s) • 262K Context • 60 cues/chunk • Advanced Multilingual & Idiom Translation",
+        supports_timestamps=True,
+        max_duration_sec=0,
+        requires_key=True,
+        doc_url="https://developers.cloudflare.com/workers-ai/models/qwen3.8-27b/",
+        verification_date="2026-11"
+    ),
+    ProviderInfo(
+        provider_id="cloudflare",
+        display_name="Cloudflare Workers AI",
+        model_id="@cf/openai/gpt-oss-120b",
+        model_display_name="GPT-OSS 120B (⚡ Moderate Speed ~42s • 117B MoE Flagship)",
+        pipeline="TRANSLATION",
+        is_free=True,
+        pricing_desc="10,000 Neurons/day free; Paid: $0.011 per 1,000 Neurons",
+        free_tier_desc="Speed: ⚡ Moderate (~42s) • 128K Context • 50 cues/chunk • Heavy MoE Flagship",
+        supports_timestamps=True,
+        max_duration_sec=0,
+        requires_key=True,
+        doc_url="https://developers.cloudflare.com/workers-ai/models/gpt-oss-120b/",
+        verification_date="2026-11"
+    ),
+    ProviderInfo(
+        provider_id="cloudflare",
+        display_name="Cloudflare Workers AI",
+        model_id="@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+        model_display_name="Llama 3.3 70B Fast (⚡ High Speed ~24s • FP8 Edge Accelerated)",
+        pipeline="TRANSLATION",
+        is_free=True,
+        pricing_desc="10,000 Neurons/day free; Paid: $0.011 per 1,000 Neurons",
+        free_tier_desc="Speed: ⚡ High Speed (~24s) • 128K Context • 60 cues/chunk • Quantized Edge Speed",
+        supports_timestamps=True,
+        max_duration_sec=0,
+        requires_key=True,
+        doc_url="https://developers.cloudflare.com/workers-ai/models/llama-3.3-70b-instruct-fp8-fast/",
+        verification_date="2026-11"
     ),
 ]

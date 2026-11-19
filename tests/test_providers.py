@@ -96,7 +96,7 @@ def test_cloudflare_translation_chunking(mock_post):
     )
 
     provider = CloudflareTranslationProvider(
-        model_id="@cf/meta/llama-3.1-8b-instruct",
+        model_id="@cf/meta/llama-3.3-70b-instruct-fp8-fast",
         api_key="CFDummyToken12345678",
         account_id="CFAccountId12345678"
     )
@@ -120,7 +120,7 @@ def test_cloudflare_auth_failure_does_not_loop_infinitely(mock_post):
     mock_post.return_value = mock_resp
 
     provider = CloudflareTranslationProvider(
-        model_id="@cf/meta/llama-3.1-8b-instruct",
+        model_id="@cf/meta/llama-3.3-70b-instruct-fp8-fast",
         api_key="CFBadToken",
         account_id="CFBadAccount"
     )
@@ -146,7 +146,7 @@ def test_cue_mismatch_raises_clear_error_not_silent_copy(mock_post):
     mock_post.return_value = mock_resp
 
     provider = CloudflareTranslationProvider(
-        model_id="@cf/meta/llama-3.1-8b-instruct",
+        model_id="@cf/meta/llama-3.3-70b-instruct-fp8-fast",
         api_key="CFToken12345678",
         account_id="CFAcct12345678"
     )
@@ -162,10 +162,46 @@ def test_cue_mismatch_raises_clear_error_not_silent_copy(mock_post):
 
 
 def test_provider_chunk_sizes():
-    """Verify Gemini uses 150 cues per chunk while Cloudflare uses 80 cues."""
+    """Verify Gemini uses 150 cues per chunk while Cloudflare defaults to 70 cues with per-model sizing."""
     from app.providers.gemini_provider import CHUNK_SIZE as GEMINI_CHUNK
-    from app.providers.cloudflare_provider import CHUNK_SIZE as CF_CHUNK
+    from app.providers.cloudflare_provider import CHUNK_SIZE as CF_CHUNK, get_chunk_size_for_model
 
     assert GEMINI_CHUNK == 150, f"Gemini chunk size should be 150, got {GEMINI_CHUNK}"
-    assert CF_CHUNK == 80, f"Cloudflare chunk size should be 80, got {CF_CHUNK}"
+    assert CF_CHUNK == 70, f"Cloudflare default chunk size should be 70, got {CF_CHUNK}"
+    assert get_chunk_size_for_model("@cf/google/gemma-4-26b-a4b-it") == 70
+    assert get_chunk_size_for_model("@cf/qwen/qwen3.8-27b") == 60
+    assert get_chunk_size_for_model("@cf/openai/gpt-oss-120b") == 50
+    assert get_chunk_size_for_model("@cf/meta/llama-3.3-70b-instruct-fp8-fast") == 60
+
+
+@patch("requests.post")
+def test_cloudflare_thinking_tag_cleaning(mock_post):
+    """Verify reasoning and thinking blocks are stripped from model output before SRT parsing."""
+    mock_resp = MagicMock()
+    mock_resp.status_code = 200
+    mock_resp.json.return_value = {
+        "result": {
+            "response": (
+                "<think>This is internal thinking process</think>\n"
+                "1\n00:00:01,000 --> 00:00:04,500\nسلام و خوش آمدید\n"
+            )
+        }
+    }
+    mock_post.return_value = mock_resp
+
+    sub_in = SubtitleFile(
+        cues=[SubtitleCue(1, 1000, 4500, "Hello and welcome.")],
+        language="en"
+    )
+
+    provider = CloudflareTranslationProvider(
+        model_id="@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+        api_key="CFDummyToken12345678",
+        account_id="CFAccountId12345678"
+    )
+    sub_out = provider.translate(sub_in, target_language="fa")
+
+    assert len(sub_out.cues) == 1
+    assert sub_out.cues[0].text == "سلام و خوش آمدید"
+    assert "<think>" not in sub_out.cues[0].text
 
