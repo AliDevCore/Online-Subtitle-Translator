@@ -11,7 +11,7 @@ from typing import Dict, List, Optional
 from app.core.types import ProviderInfo
 
 APP_NAME = "Online Subtitle Translator"
-APP_VERSION = "1.0.11"
+APP_VERSION = "1.0.12"
 APP_AUTHOR = "Online Subtitle Project"
 
 # Determine base paths and portable mode

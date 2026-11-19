@@ -1,6 +1,6 @@
 # Changelog
 
-## [1.0.11] - 2026-11-19
+## [1.0.12] - 2026-11-19
 
 ### Fixed
 - Fixed Cloudflare Workers AI `Read timed out` on long subtitles by reducing cue chunk sizes to optimal fast response ranges:
